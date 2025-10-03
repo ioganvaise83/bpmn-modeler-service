@@ -1,0 +1,44 @@
+# Backend build stage
+FROM golang:1.23-alpine AS builder
+
+WORKDIR /app
+
+# Copy go mod files
+COPY server/go.mod ./server/
+
+# Download dependencies
+WORKDIR /app/server
+RUN go mod download
+
+# Copy source code
+COPY server/ ./
+
+# Build the application
+RUN CGO_ENABLED=0 GOOS=linux go build -o main .
+
+# Production stage
+FROM alpine:latest
+
+# Install ca-certificates for HTTPS requests if needed
+RUN apk --no-cache add ca-certificates
+
+WORKDIR /app
+
+# Copy the binary
+COPY --from=builder /app/server/main .
+
+# Copy data files
+COPY server/data ./data
+
+# Create non-root user
+RUN addgroup -g 1001 -S appuser && \
+    adduser -S -D -H -u 1001 -h /app -s /sbin/nologin -G appuser -g appuser appuser && \
+    chown -R appuser:appuser /app
+
+USER appuser
+
+EXPOSE 8081
+
+ENV PORT=8081
+
+CMD ["./main"]

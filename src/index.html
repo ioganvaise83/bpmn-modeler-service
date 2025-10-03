@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Редактор BPMN</title>
+</head>
+<body>
+  <div class="content" id="js-drop-zone">
+
+    <div class="message intro">
+      <div class="note">
+        Перетащите диаграмму BPMN с вашего рабочего стола или <a id="js-create-diagram" href>создайте новую диаграмму</a> чтобы начать.
+      </div>
+    </div>
+
+    <div class="message error">
+      <div class="note">
+        <p>Упс, нам не удалось отобразить диаграмму BPMN 2.0.</p>
+
+        <div class="details">
+          <span>причина проблемы</span>
+          <pre></pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="canvas" id="js-canvas"></div>
+  </div>
+  <ul class="buttons">
+    <li>
+      <button id="load-button">🔽 Load diagram</button>
+    </li>
+    <li>
+      <button id="save-button" disabled>💾 Save diagram</button>
+    </li>
+    <li><a id="js-download-svg" href="#">⬇️ Скачать SVG</a></li>
+    <li><a id="js-download-diagram" href="#">⬇️ Скачать BPMN</a></li>
+  </ul>
+
+  <script type="module" src="app.js"></script>
+</html>
