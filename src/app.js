@@ -46,7 +46,8 @@ async function openDiagram(xml) {
 
     await modeler.importXML(xml);
     container.removeClass('with-error').addClass('with-diagram');
-    document.querySelector('#save-button').disabled = false;
+    // document.querySelector('#save-button').disabled = false;
+    // document.querySelector('#save-scheme-button')?.disabled = false;
   } catch (err) {
     container.removeClass('with-diagram').addClass('with-error');
     container.find('.error pre').text(err.message);
@@ -54,124 +55,90 @@ async function openDiagram(xml) {
   }
 }
 
-async function saveDiagram() {
+// Новая функция для кнопки "💽 Сохранить схему"
+async function saveScheme() {
   try {
-    console.log('🔍 Начало сохранения диаграммы...');
-    //console.log('🔍 Modeler доступен:', !!modeler);
-    
+    console.log('🔍 Начало сохранения схемы через кнопку 💽...');
+
     // Проверяем, что modeler инициализирован
     if (!modeler) {
       throw new Error('Моделировщик BPMN не инициализирован');
     }
 
-    // Сохраняем XML из моделировщика
-    console.log('📄 Вызов modeler.saveXML...');
+    // Получаем XML диаграммы с canvas
+    console.log('📄 Получение XML с canvas...');
     const result = await modeler.saveXML({ format: true });
-    console.log('📄 Результат saveXML:', result);
-    console.log('📄 Тип результата:', typeof result);
-    console.log('📄 Ключи результата:', result ? Object.keys(result) : 'result is falsy');
-    
-    // Детальная проверка результата
+
+    // Проверяем результат
     if (!result) {
-      throw new Error('Моделировщик не вернул данные - результат undefined');
+      throw new Error('Не удалось получить данные диаграммы с canvas');
     }
-    
-    if (typeof result !== 'object') {
-      throw new Error(`Моделировщик вернул некорректный тип: ${typeof result}`);
-    }
-    
+
     const { xml, warnings } = result;
-    
-    console.log('🔍 XML в результате:', xml);
-    console.log('🔍 Warnings в результате:', warnings);
-    
-    // Проверяем xml более тщательно
-    if (xml === undefined) {
-      throw new Error('XML не определен (undefined) в результате');
-    }
-    
-    if (xml === null) {
-      throw new Error('XML равен null в результате');
-    }
-    
-    if (typeof xml !== 'string') {
-      throw new Error(`XML должен быть строкой, получен: ${typeof xml}`);
-    }
-    
-    if (!xml.trim()) {
-      throw new Error('XML пустой (только пробелы)');
+
+    // Валидация XML
+    if (!xml || typeof xml !== 'string' || !xml.trim()) {
+      throw new Error('Диаграмма пуста или содержит некорректные данные');
     }
 
-    console.log('✅ XML получен, длина:', xml && xml.length, 'символов');
-    console.log('📋 Первые 200 символов XML:', xml && typeof xml === 'string' ? xml.substring(0, 200) : `XML не является строкой: ${typeof xml}`);
-
+    console.log('✅ XML получен с canvas, длина:', xml.length, 'символов');
 
     if (warnings && Array.isArray(warnings) && warnings.length > 0) {
-      console.warn('⚠️ Предупреждения при сохранении:', warnings);
+      console.warn('⚠️ Предупреждения при получении диаграммы:', warnings);
     }
 
-    console.log('📤 Отправка XML на сервер...');
-    const res = await fetch('http://localhost:8081/diagram', {
+    // Отправляем на сервер
+    console.log('📤 Отправка диаграммы на сервер...');
+    const response = await fetch('http://localhost:8081/diagram', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/xml' },
+      headers: {
+        'Content-Type': 'application/xml'
+      },
       body: xml
     });
 
-    console.log('📥 Статус ответа:', res.status, res.statusText);
-    
-    // Получаем текст ответа для детальной информации
-    const responseText = await res.text();
-    console.log('Текст ответа:', responseText);
+    console.log('📥 Ответ сервера:', response.status, response.statusText);
 
-    if (!res.ok) {
-      // Детализируем ошибку
-      let errorMessage = `HTTP ${res.status}: ${res.statusText}`;
+    // Получаем текст ответа
+    const responseText = await response.text();
+    console.log('📄 Текст ответа сервера:', responseText);
+
+    if (!response.ok) {
+      let errorMessage = `Ошибка сервера: ${response.status} ${response.statusText}`;
       if (responseText) {
         errorMessage += ` - ${responseText}`;
       }
       throw new Error(errorMessage);
     }
 
-    console.log('✅ Схема успешно сохранена, ответ сервера:', responseText);
-    alert('✅ Схема успешно сохранена!');
-    
-  } catch (err) {
-    console.error('❌ Полная ошибка при сохранении схемы:', err);
-    console.error('🔍 Стек вызовов:', err.stack);
-    console.error('🔍 Тип ошибки:', err.name);
-    
-    // Более детальное сообщение для пользователя
-    let userMessage = 'Ошибка при сохранении схемы.\n\n';
-    
-    if (err.message.includes('Cannot read properties of undefined') || 
-        err.message.includes('XML не определен') ||
-        err.message.includes('Моделировщик не вернул данные')) {
-      userMessage += '❌ Ошибка данных: не удалось сгенерировать XML схему\n';
-      userMessage += 'Возможные причины:\n';
-      userMessage += '- Диаграмма пустая или повреждена\n';
-      userMessage += '- Моделировщик не инициализирован\n';
-      userMessage += '- Проблема с библиотекой bpmn-js\n\n';
-    } else if (err.message.includes('XML должен быть строкой')) {
-      userMessage += '❌ Некорректный формат данных\n';
-      userMessage += `Моделировщик вернул: ${err.message.split('получен: ')[1]}\n\n`;
-    } else if (err.message.includes('XML пустой')) {
-      userMessage += '❌ Диаграмма пустая\n';
-      userMessage += 'Добавьте элементы на схему перед сохранением\n\n';
-    } else if (err.name === 'TypeError' && err.message.includes('fetch')) {
+    console.log('✅ Схема успешно сохранена на сервер!');
+    alert('✅ Схема успешно сохранена на сервер!');
+
+  } catch (error) {
+    console.error('❌ Ошибка при сохранении схемы:', error);
+
+    // Детализированное сообщение об ошибке для пользователя
+    let userMessage = 'Не удалось сохранить схему.\n\n';
+
+    if (error.message.includes('Моделировщик BPMN не инициализирован')) {
+      userMessage += '❌ Моделировщик не готов. Перезагрузите страницу.\n\n';
+    } else if (error.message.includes('Диаграмма пуста')) {
+      userMessage += '❌ Диаграмма пуста. Добавьте элементы перед сохранением.\n\n';
+    } else if (error.message.includes('fetch') || error.message.includes('Network')) {
       userMessage += '❌ Ошибка соединения с сервером.\n';
-      userMessage += 'Проверьте:\n';
-      userMessage += '- Запущен ли backend сервер\n';
-      userMessage += '- Адрес: http://backend:8081\n\n';
-    } else if (err.message.includes('404')) {
-      userMessage += '❌ Страница не найдена (404).\n';
-      userMessage += 'Endpoint /diagram не существует на сервере\n\n';
-    } else if (err.message.includes('500')) {
+      userMessage += 'Проверьте подключение к интернету и работу backend сервера.\n\n';
+    } else if (error.message.includes('404')) {
+      userMessage += '❌ Сервер не найден (404).\n';
+      userMessage += 'Проверьте адрес сервера: http://localhost:8081\n\n';
+    } else if (error.message.includes('500')) {
       userMessage += '❌ Ошибка на сервере (500).\n';
-      userMessage += 'Проверьте логи backend сервера\n\n';
+      userMessage += 'Проверьте логи backend сервера.\n\n';
+    } else {
+      userMessage += `❌ Неизвестная ошибка: ${error.message}\n\n`;
     }
-    
-    userMessage += `Техническая информация:\n${err.message}`;
-    
+
+    userMessage += `Технические детали:\n${error.message}`;
+
     alert(userMessage);
   }
 }
@@ -297,7 +264,7 @@ async function setupUI() {
     $('.message.intro').hide();
   });
 
-  document.querySelector('#save-button')?.addEventListener('click', saveDiagram);
+  document.querySelector('#save-scheme-button')?.addEventListener('click', saveScheme);
   document.querySelector('#load-button')?.addEventListener('click', loadDiagram);
 
   document.querySelectorAll('.buttons a').forEach((el) => {
@@ -323,5 +290,5 @@ async function setupUI() {
 
 window.addEventListener('DOMContentLoaded', async () => {
   await setupUI();
-  await loadDiagram(); // Загружаем схему с сервера или по умолчанию
+  // await (); // Загружаем схему с сервера или по умолчанию
 });
